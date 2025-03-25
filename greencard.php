@@ -14,7 +14,7 @@ get_header(); ?>
                         <?php the_title(); ?>
                     </h1>
 
-                    <?php echo do_shortcode(get_field('form_shortcode')); ?>
+                    <?php  echo do_shortcode('[green_card]'); ?>
 
 
                 </div>
