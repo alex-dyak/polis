@@ -1,0 +1,79 @@
+/*!
+Theme Name: polis
+Author: Herman Zuiakov
+Author URI: https://www.linkedin.com/in/herman-zuiakov-674480242/
+Version: 1.0.0
+Text Domain: polis
+*/
+
+.alignleft {
+
+	/*rtl:ignore*/
+	float: left;
+
+	/*rtl:ignore*/
+	margin-right: 1.5em;
+	margin-bottom: 1.5em;
+}
+
+.alignright {
+
+	/*rtl:ignore*/
+	float: right;
+
+	/*rtl:ignore*/
+	margin-left: 1.5em;
+	margin-bottom: 1.5em;
+}
+
+.aligncenter {
+	clear: both;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-bottom: 1.5em;
+}
+
+
+.loaded {
+	opacity: 1 !important;
+}
+
+.input ~ .form__error {
+	display: none;
+}
+
+.input.error ~ .form__error {
+	display: block;
+}
+
+.form label {
+	padding: 0;
+}
+
+.benefits:nth-child(2n) .benefits__columns {
+	flex-direction: row-reverse;
+}
+
+.frontForm-success {
+	display: none;
+}
+
+.d-none {
+	display: none !important;
+}
+.d-block {
+	display: block !important;
+}
+.insurance-protect__content h2 {
+	font-size: 1.75rem;
+	margin-bottom: 1.875rem;
+	letter-spacing: 1.6px;
+	font-weight: 700;
+}
+.green-card__left img {
+	height: 100%;
+}
+.what-can-insured__right img {
+	height: 100%;
+}
