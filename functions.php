@@ -90,6 +90,16 @@ $bearer_token = get_api_token();
             'bearer_token' => $bearer_token  
         ));
     }
+
+    if (is_page_template('greencard.php')) {
+        wp_enqueue_script(
+            'custom-ajax-script',
+            get_template_directory_uri() . '/js/oranta-api-request.js', // Путь к скрипту
+            array('jquery'), // Зависимости (jQuery)
+            null,
+            true // Подключить в footer
+        );
+    }
 }
 add_action('wp_enqueue_scripts', 'enqueue_custom_script');
 
@@ -673,3 +683,82 @@ function send_contact_form()
 }
 add_action("wp_ajax_send_contact_form", "send_contact_form");
 add_action("wp_ajax_nopriv_send_contact_form", "send_contact_form");
+
+
+// Функция для регистрации кастомного REST API эндпоинта
+function register_calculate_api_endpoint() {
+    register_rest_route(
+        'custom/v1', // Префикс для REST API
+        '/calculate', // Путь к endpoint
+        array(
+            'methods' => 'POST', // Метод POST
+            'callback' => 'handle_calculate_api_request', // Функция-обработчик запроса
+            'permission_callback' => '__return_true', // Открытый доступ (можно ограничить правами)
+        )
+    );
+}
+add_action('rest_api_init', 'register_calculate_api_endpoint');
+
+// Обработчик запроса
+function handle_calculate_api_request( WP_REST_Request $request ) {
+    // Получаем данные из запроса
+    $vehicleType = $request->get_param('vehicleType');
+    $territoryType = $request->get_param('territoryType');
+    $period = $request->get_param('period');
+
+    // Проверка на обязательные параметры
+    if (empty($vehicleType) || empty($territoryType) || empty($period)) {
+        return new WP_REST_Response('Missing parameters', 400); // Ответ с ошибкой, если параметры не указаны
+    }
+
+    // Параметры для запроса к внешнему API
+    $api_url = 'https://stgdia-rest.oranta.ua/PartnerGreenCardDigital/Calculate';
+    $username = 'polisaon_api';
+    $password = '!Polis123';
+
+    // Данные для отправки в API
+    $data = [
+        'vehicleType' => (int) $vehicleType,
+        'territoryType' => (int) $territoryType,
+        'period' => (int) $period,
+    ];
+
+    // Инициализация cURL
+    $ch = curl_init($api_url);
+
+    // Установка параметров cURL
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/plain',
+        'Content-Type: application/json',
+    ]);
+
+    // Устанавливаем авторизацию
+    curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+    // Выполнение запроса
+    $response = curl_exec($ch);
+
+    // Проверка на ошибки
+    if (curl_errno($ch)) {
+        curl_close($ch);
+        return new WP_REST_Response('cURL Error: ' . curl_error($ch), 500); // Ошибка cURL
+    }
+
+    // Получаем код ответа
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    // Закрытие cURL-сессии
+    curl_close($ch);
+
+    // Если запрос успешный (HTTP код 200)
+    if ($http_code === 200) {
+        return new WP_REST_Response(json_decode($response), 200); // Возвращаем ответ от API
+    } else {
+        return new WP_REST_Response('Error ' . $http_code . ': ' . $response, $http_code); // Возвращаем ошибку
+    }
+}
+
+
