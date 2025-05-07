@@ -13,18 +13,13 @@ get_header(); ?>
                     <h1 class="hero-page__title h1 psd">
                         <?php the_title(); ?>
                     </h1>
-
-                    <?php  echo do_shortcode('[green_card]'); ?>
-
-
+                    <div class="insurance-protect__container">
+                        <div class="insurance-protect__content">
+                            <?php the_content(); ?>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="insurance-protect__container">
-        <div class="insurance-protect__content">
-            <?php the_content(); ?>
         </div>
     </div>
 

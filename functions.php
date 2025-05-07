@@ -93,12 +93,15 @@ $bearer_token = get_api_token();
 
     if (is_page_template('greencard.php')) {
         wp_enqueue_script(
-            'custom-ajax-script',
+            'oranta-api-request-js',
             get_template_directory_uri() . '/js/oranta-api-request.js', // Путь к скрипту
             array('jquery'), // Зависимости (jQuery)
             null,
             true // Подключить в footer
         );
+        wp_localize_script('oranta-api-request-js', 'ajax_object', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+        ));
     }
 }
 add_action('wp_enqueue_scripts', 'enqueue_custom_script');
@@ -251,35 +254,6 @@ function ajax_calculate_package() {
     wp_send_json_success( $result);
 }
 
-// function create_policy_draft($data) {
-//     $bearer_token = get_api_token();
-//     if (!$bearer_token) {
-//         return array('error' => 'Unable to obtain API token');
-//     }
-
-//     $url = 'https://dev-1-api.reins.pp.ua/Policy/Draft';
-
-//     $response = wp_remote_post($url, array(
-//         'headers' => array(
-//             'Authorization' => 'Bearer ' . $bearer_token,
-//             'Content-Type' => 'application/json'
-//         ),
-//         'body' => json_encode($data),
-//         'timeout' => 25
-//     ));
-
-//     if (is_wp_error($response)) {
-//         $error_message = $response->get_error_message();
-//         return array('error' => $error_message);
-//     }
-
-//     $response_body = wp_remote_retrieve_body($response);
-//     $response_data = json_decode($response_body, true);
-
-//     return $response_data;
-
-// }
-
 function create_policy_draft($data) {
     // Перевірка та заміна Insureds, якщо воно дорівнює порожньому рядку "[]"
     if (isset($data['Insureds']) && $data['Insureds'] === "[]") {
@@ -314,7 +288,7 @@ function create_policy_draft($data) {
 }
 
  
-  add_action('wp_ajax_create_policy_draft', 'ajax_create_policy_draft');
+add_action('wp_ajax_create_policy_draft', 'ajax_create_policy_draft');
 add_action('wp_ajax_nopriv_create_policy_draft', 'ajax_create_policy_draft');
 
 function ajax_create_policy_draft() {
@@ -608,8 +582,8 @@ $resultUrlSuccess = $postUrl . '?code=' . urlencode($code);
   // Без параметра коду
 
     // Ключі LiqPay
-     //$public_key = 'sandbox_i80975834494';
-    // $private_key = 'sandbox_jsFkNJbXfI2ooxS3ccaXY3waE3bVFO6qnTNkhXPU';
+//     $public_key = 'sandbox_i80975834494';
+//     $private_key = 'sandbox_jsFkNJbXfI2ooxS3ccaXY3waE3bVFO6qnTNkhXPU';
 
   $public_key = 'i42941500815';
    $private_key = 'N9EZTC08Aeub5tz6BEpqQkKyLbfyE41uTgSZh06i';
@@ -686,7 +660,7 @@ add_action("wp_ajax_nopriv_send_contact_form", "send_contact_form");
 
 
 // Функция для регистрации кастомного REST API эндпоинта
-function register_calculate_api_endpoint() {
+function register_api_endpoints() {
     register_rest_route(
         'custom/v1', // Префикс для REST API
         '/calculate', // Путь к endpoint
@@ -696,8 +670,96 @@ function register_calculate_api_endpoint() {
             'permission_callback' => '__return_true', // Открытый доступ (можно ограничить правами)
         )
     );
+    register_rest_route(
+        'custom/v1',
+        '/calculate/osago',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_calculate_osago_api_request',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/register-insurance',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_register_api_request',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/register-osago-insurance',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_register_osago_api_request',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/confirm-otp-code',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_confirm_otp_request',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/confirm-osago-otp-code',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_confirm_osago_otp_request',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/confirm-payment',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_confirm_payment',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/confirm-osago-payment',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_confirm_osago_payment',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/send-police',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_send_police',
+            'permission_callback' => '__return_true',
+        )
+    );
+    register_rest_route(
+        'custom/v1',
+        '/send-osago-police',
+        array(
+            'methods' => 'POST',
+            'callback' => 'handle_send_osago_police',
+            'permission_callback' => '__return_true',
+        )
+    );
 }
-add_action('rest_api_init', 'register_calculate_api_endpoint');
+add_action('rest_api_init', 'register_api_endpoints');
+
+
+define('ORANTA_API_GREEN_CARD_URL', get_field('oranta_api_green_card_url', 'option'));
+define('ORANTA_API_OSAGO_URL', get_field('oranta_api_osago_url', 'option'));
+define('ORANTA_API_USER', get_field('oranta_api_user', 'option'));
+define('ORANTA_API_PASSWORD', get_field('oranta_api_password', 'option'));
+
 
 // Обработчик запроса
 function handle_calculate_api_request( WP_REST_Request $request ) {
@@ -712,9 +774,9 @@ function handle_calculate_api_request( WP_REST_Request $request ) {
     }
 
     // Параметры для запроса к внешнему API
-    $api_url = 'https://stgdia-rest.oranta.ua/PartnerGreenCardDigital/Calculate';
-    $username = 'polisaon_api';
-    $password = '!Polis123';
+    $api_url = ORANTA_API_GREEN_CARD_URL . '/Calculate';
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
 
     // Данные для отправки в API
     $data = [
@@ -761,4 +823,505 @@ function handle_calculate_api_request( WP_REST_Request $request ) {
     }
 }
 
+function handle_calculate_osago_api_request( WP_REST_Request $request ) {
 
+    $k4 = $request->get_param('k4') ?: "1";
+    $agentId = $request->get_param('agentId');
+    $cityID = $request->get_param('DCityID');
+    $periodID = $request->get_param('DPeriodID');
+    $franchise = $request->get_param('Franchise');
+    $expLimitID = $request->get_param('DExpLimitID');
+    $privelegeID = $request->get_param('DPrivelegeID');
+    $sphereUseID = $request->get_param('DSphereUseID');
+    $vehicleTypeID = $request->get_param('DVehicleTypeID');
+    $personStatusID = $request->get_param('DPersonStatusID');
+    $citizenStatusID = $request->get_param('DCitizenStatusID');
+    $bonusMalusIDEnum = $request->get_param('dBonusMalusIDEnum');
+    $bonusMalusID = $request->get_param('DBonusMalusID');
+    $vehicleUsage = $request->get_param('vehicleUsage') ?: '111111111111';
+
+    $api_url = ORANTA_API_OSAGO_URL . '/Calculate';
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+
+    $data = [
+        'K4'                => $k4,
+        'agentId'           => $agentId,
+        'DCityID'           => (int) $cityID,
+        'DPeriodID'         => (int) $periodID,
+        'Franchise'         => (int) $franchise,
+        'DExpLimitID'       => (int) $expLimitID,
+        'DPrivelegeID'      => (int) $privelegeID,
+        'DSphereUseID'      => (int) $sphereUseID,
+        'DVehicleTypeID'    => (int) $vehicleTypeID,
+        'DPersonStatusID'   => (int) $personStatusID,
+        'DCitizenStatusID'  => (int) $citizenStatusID,
+        'vehicleUsage'      => $vehicleUsage,
+        'dBonusMalusIDEnum' => $bonusMalusIDEnum,
+        'DBonusMalusID'     => (int) $bonusMalusID,
+    ];
+
+    $ch = curl_init($api_url);
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/plain',
+        'Content-Type: application/json',
+    ]);
+
+    curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+    $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        curl_close($ch);
+        return new WP_REST_Response('cURL Error: ' . curl_error($ch), 500);
+    }
+
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+
+    if ($http_code === 200) {
+        return new WP_REST_Response(json_decode($response), 200);
+    } else {
+        return new WP_REST_Response('Error ' . $http_code . ': ' . $response, $http_code);
+    }
+}
+
+function handle_register_api_request( WP_REST_Request $request ) {
+    $form_data = $request->get_json_params();
+
+    // Маппинг данных из формы в API
+    $api_payload = [
+        "AgentCodeEDRPOU"      => "39880329",
+        "sendSMS"              => true,
+        "VehicleType"          => $form_data['VehicleType'],
+        "RegistrationPlace"    => $form_data['RegistrationPlace'],
+        "Period"               => $form_data['Period'],
+        "TerritoryType"        => $form_data['TerritoryType'],
+        "BeginningDate"        => formatDate($form_data['BeginningDate']),
+        "RegistrationNumber"   => $form_data['RegistrationNumber'],
+        "VIN"                  => $form_data['VIN'],
+        "ManufacturerModel"    => $form_data['ManufacturerModel'],
+        "ProduceDate"          => $form_data['ProduceDate'],
+        "InsurerBirthDate"     => formatDate($form_data['InsurerBirthDate']),
+        "Surname"              => $form_data['Surname'],
+        "Name"                 => $form_data['Name'],
+        "SecondName"           => $form_data['SecondName'],
+        "FullNameEnglish"      => $form_data['FullNameEnglish'],
+        "IdentificationCode"   => $form_data['IdentificationCode'],
+        "MobilePhoneNumber"    => formatPhoneNumber($form_data['MobilePhoneNumber']),
+        "Email"                => $form_data['Email'],
+        "InsurerAddress"       => $form_data['InsurerAddress'],
+        "DocumentType"         => $form_data['DocumentType'],
+        "DocumentSeria"        => $form_data['DocumentSeria'],
+        "DocumentNumber"       => $form_data['DocumentNumber'],
+        "DocumentIssudDate"    => formatDate($form_data['DocumentIssudDate']),
+        "DocumentIssuedBy"     => $form_data['DocumentIssuedBy'],
+        "Payment"              => $form_data['Payment'],
+        "insurancetype"        => $form_data['insurancetype'],
+    ];
+
+    // Параметры для запроса к внешнему API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+
+    // URL API
+    $url = ORANTA_API_GREEN_CARD_URL . '/Register';
+
+    // Инициализация cURL
+    $ch = curl_init($url);
+
+    // Устанавливаем параметры cURL
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/plain',
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($api_payload));
+
+    // Выполняем запрос
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+
+    // Закрываем cURL-сессию
+    curl_close($ch);
+
+    if ($curl_error) {
+        return new WP_REST_Response(['success' => false, 'message' => 'cURL error: ' . $curl_error], 500);
+    }
+
+    $body = json_decode($response, true);
+
+    if ($http_code === 200 && !empty($body['MainCode'])) {
+        $post_data = create_oranta_insurance_post($api_payload, $body);
+        return new WP_REST_Response([
+            'success'  => true,
+            'message'  => 'OTP sent',
+            'MainCode' => $body['MainCode'],
+            'post_id' => $post_data['post_id'],
+            'post_url' => $post_data['post_url'],
+            'policyId' => $post_data['policyId'],
+            'policyCost' => $post_data['policyCost'],
+            'uniqueTitle' => $post_data['uniqueTitle'],
+            'uniqueCode' => $post_data['uniqueCode'],
+        ], 200);
+    }
+
+    return new WP_REST_Response(['success' => false, 'message' => 'Error in API response', 'response' => $body], $http_code);
+}
+
+function handle_register_osago_api_request( WP_REST_Request $request ) {
+    $form_data = $request->get_json_params();
+
+    // Маппинг данных из формы в API
+    $api_payload = [
+        "contractId" => $form_data['contractId'],
+        "agentId" => $form_data['agentId'],
+        "sendSMS" => true,
+        "DCityID" => $form_data['DCityID'],
+        "StartDate" => formatDate($form_data['StartDate']),
+        "DPeriodID" => $form_data['DPeriodID'],
+        "K1" => $form_data['K1'],
+        "K2" => $form_data['K2'],
+        "K3" => $form_data['K3'],
+        "K4" => $form_data['K4'],
+        "K5" => $form_data['K5'],
+        "K6" => $form_data['K6'],
+        "K7" => $form_data['K7'],
+        "K8" => $form_data['K8'],
+        "BirthDate" => formatDate($form_data['BirthDate']),
+        "dBonusMalusIDEnum" => $form_data['dBonusMalusIDEnum'],
+        "DBonusMalusID" => $form_data['DBonusMalusID'],
+        "DCitizenStatusID" => $form_data['DCitizenStatusID'],
+        "DPersonStatusID" => $form_data['DPersonStatusID'],
+        "DPrivelegeID" => $form_data['DPrivelegeID'],
+        "DExpLimitID" => $form_data['DExpLimitID'],
+        "Franchise" => $form_data['Franchise'],
+        "insPremium" => $form_data['insPremium'],
+        "Surname" => $form_data['Surname'],
+        "Name" => $form_data['Name'],
+        "PName" => $form_data['PName'],
+        "FullNameEnglish" => $form_data['FullNameEnglish'],
+        "IdentCode" => $form_data['IdentCode'],
+        "MobilePhoneNumber" => formatPhoneNumber($form_data['MobilePhoneNumber']),
+        "Email" => $form_data['Email'],
+        "Address" => $form_data['Address'],
+        "DocumentType" => $form_data['DocumentType'],
+        "DocSeries" => $form_data['DocSeries'],
+        "DocNumber" => $form_data['DocNumber'],
+        "DocName" => $form_data['DocSeries'] . '-' .  $form_data['DocNumber'],
+        "issueDate" => formatDate($form_data['issueDate']),
+        "issued" => $form_data['issued'],
+        "RegNo" => $form_data['RegNo'],
+        "VIN" => $form_data['VIN'],
+        "DVehicleTypeID" => $form_data['DVehicleTypeID'],
+        "DSphereUseID" => $form_data['DSphereUseID'],
+        "vehicleUsage" => $form_data['vehicleUsage'],
+        "CarMake" => $form_data['CarMake'],
+        "CarModel" => $form_data['CarModel'],
+        "AutoDescr" => $form_data['CarMake'] . ' ' . $form_data['CarModel'],
+        "prodYear" => $form_data['prodYear'],
+        "InsPremium" => $form_data['Payment_osago'],
+        "Payment" => $form_data['Payment_osago'],
+        "insurancetype" => $form_data['insurancetype'],
+    ];
+
+    // Параметры для запроса к внешнему API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+
+    // URL API
+    $url = ORANTA_API_OSAGO_URL . '/Register';
+
+    // Инициализация cURL
+    $ch = curl_init($url);
+
+    // Устанавливаем параметры cURL
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/plain',
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($api_payload));
+
+    // Выполняем запрос
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+
+    // Закрываем cURL-сессию
+    curl_close($ch);
+
+    if ($curl_error) {
+        return new WP_REST_Response(['success' => false, 'message' => 'cURL error: ' . $curl_error], 500);
+    }
+
+    $body = json_decode($response, true);
+
+    if ($http_code === 200 && !empty($body['MainCode'])) {
+        $post_data = create_oranta_insurance_post($api_payload, $body);
+        return new WP_REST_Response([
+            'success'  => true,
+            'message'  => 'OTP sent',
+            'MainCode' => $body['MainCode'],
+            'post_id' => $post_data['post_id'],
+            'post_url' => $post_data['post_url'],
+            'policyId' => $post_data['policyId'],
+            'policyCost' => $post_data['policyCost'],
+            'uniqueTitle' => $post_data['uniqueTitle'],
+            'uniqueCode' => $post_data['uniqueCode'],
+        ], 200);
+    }
+
+    return new WP_REST_Response(['success' => false, 'message' => 'Error in API response', 'response' => $body], $http_code);
+}
+
+function handle_confirm_otp_request(WP_REST_Request $request) {
+    $params = $request->get_json_params(); // Получаем JSON-данные из запроса
+
+    $mainCode = isset($params['mainCode']) ? sanitize_text_field($params['mainCode']) : '';
+    $otpCode = isset($params['otpCode']) ? sanitize_text_field($params['otpCode']) : '';
+    setcookie("otpCode", $otpCode, time() + 3600, "/");
+    setcookie("greenCard", "green Card", time() + 3600, "/");
+
+    if (empty($mainCode) || empty($otpCode)) {
+        return new WP_REST_Response(['status' => 400, 'message' => 'Missing required fields'], 400);
+    }
+
+    // Данные для отправки на внешний API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_GREEN_CARD_URL . '/ValidateCode';
+    $body = json_encode(['mainCode' => $mainCode, 'otpCode' => $otpCode]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+function handle_confirm_osago_otp_request(WP_REST_Request $request) {
+    $params = $request->get_json_params(); // Получаем JSON-данные из запроса
+
+    $mainCode = isset($params['mainCode']) ? sanitize_text_field($params['mainCode']) : '';
+    $otpCode = isset($params['otpCode']) ? sanitize_text_field($params['otpCode']) : '';
+    setcookie("otpCode", $otpCode, time() + 3600, "/");
+    setcookie("osago", "osago", time() + 3600, "/");
+
+    if (empty($mainCode) || empty($otpCode)) {
+        return new WP_REST_Response(['status' => 400, 'message' => 'Missing required fields'], 400);
+    }
+
+    // Данные для отправки на внешний API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_OSAGO_URL . '/ValidateCode';
+    $body = json_encode(['mainCode' => $mainCode, 'otpCode' => $otpCode]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+
+// Функция для преобразования даты в нужный формат
+function formatDate($date) {
+    return (new DateTime($date, new DateTimeZone('Europe/Kiev')))->format('Y-m-d\TH:i:sP');
+}
+
+// Функция для форматирования номера телефона
+function formatPhoneNumber($phone) {
+    return preg_replace('/[^\d\+]/', '', $phone); // Убираем все символы кроме цифр и знака +
+}
+
+function create_oranta_insurance_post($api_payload, $body) {
+    // Перевірка необхідних полів
+    $required_fields = ['policyId','title', 'emailinsurance', 'nameinsurance', 'codeinsurance', 'amountinsurance', 'phoneinsurance', 'urlinsurance', 'datainsurance', 'insurancetype'];
+
+    $parsed_url = parse_url($body['PolicyDirectLink']);
+    parse_str($parsed_url['query'], $query_params);
+    $md_value = $query_params['md'] ?? null;
+
+    $date_string = date('d.m.Y H:i:s');
+    $formatted_date = formatDate($date_string);
+
+    $post_title = $api_payload['Surname'] . ' ' . $api_payload['Name'] . ' - ' . $date_string . ' - Сума: ' . $api_payload['Payment'] . ' UAH';
+
+    $post_fields = [
+        'policyId' => $md_value,
+        'title' => $post_title,
+        'emailinsurance' => $api_payload['Email'],
+        'nameinsurance' =>$api_payload['Name'] . ' ' . $api_payload['Surname'],
+        'codeinsurance' => $body['MainCode'],
+        'amountinsurance' => $api_payload['Payment'],
+        'phoneinsurance' => $api_payload['MobilePhoneNumber'],
+        'urlinsurance' =>$body['PolicyDirectLink'],
+        'datainsurance' => $formatted_date,
+        'insurancetype' => $api_payload['insurancetype'],
+    ];
+    foreach ($required_fields as $field) {
+        if (!isset($post_fields)) {
+            wp_send_json_error('Необхідні дані не передані: ' . sanitize_text_field($field));
+        }
+    }
+
+    // Додаємо пост
+    $post_id = wp_insert_post([
+        'post_title' => sanitize_text_field($post_title),
+        'post_type' => 'insurance',
+        'post_status' => 'publish'
+    ]);
+
+    if (is_wp_error($post_id)) {
+        wp_send_json_error('Не вдалося створити запис у базі даних.');
+    }
+
+    // Оновлюємо ACF поля
+    update_field('emailinsurance', sanitize_email($post_fields['emailinsurance']), $post_id);
+    update_field('nameinsurance', sanitize_text_field($post_fields['nameinsurance']), $post_id);
+    update_field('codeinsurance', sanitize_text_field($post_fields['codeinsurance']), $post_id);
+    update_field('amountinsurance', sanitize_text_field($post_fields['amountinsurance']), $post_id);
+    update_field('phoneinsurance', sanitize_text_field($post_fields['phoneinsurance']), $post_id);
+    update_field('urlinsurance', esc_url_raw($post_fields['urlinsurance']), $post_id);
+    update_field('datainsurance', sanitize_text_field($post_fields['datainsurance']), $post_id);
+    update_field('idinsurance', sanitize_text_field($post_fields['policyId']), $post_id);
+    update_field('insurancetype', sanitize_text_field($post_fields['insurancetype']), $post_id);
+    update_field('status', "draft", $post_id);
+    // Формуємо URL для сторінки з записом
+    $post_url = get_permalink($post_id);
+
+    return [
+        'post_id' => $post_id,
+        'post_url' => $post_url,
+        'policyId' => $post_fields['policyId'],
+        'policyCost' => $post_fields['amountinsurance'],
+        'uniqueTitle' => $post_title,
+        'uniqueCode' => $post_fields['codeinsurance'],
+    ];
+}
+
+function handle_confirm_payment(WP_REST_Request $request) {
+    $params = $request->get_json_params();
+
+    $polisNumber = isset($params['confirmationCode']) ? sanitize_text_field($params['confirmationCode']) : '';
+    $otpClientSign = isset($_COOKIE['otpCode']) ? sanitize_text_field($_COOKIE['otpCode']) : '';
+    setcookie("otpCode", '', time() - 3600, "/");
+    setcookie("greenCard", '', time() - 3600, "/");
+
+    if (empty($polisNumber) || empty($otpClientSign)) {
+        return new WP_REST_Response(['status' => 400, 'message' => 'Missing required fields'], 400);
+    }
+// Данные для отправки на внешний API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_GREEN_CARD_URL . '/Confirm';
+    $body = json_encode(['polisNumber' => $polisNumber, 'otpClientSign' => $otpClientSign]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+function handle_confirm_osago_payment(WP_REST_Request $request) {
+    $params = $request->get_json_params();
+
+    $mainCode = isset($params['confirmationCode']) ? sanitize_text_field($params['confirmationCode']) : '';
+    $dgoCode = isset($_COOKIE['otpCode']) ? sanitize_text_field($_COOKIE['otpCode']) : '';
+    setcookie("otpCode", '', time() - 3600, "/");
+    setcookie("osago", '', time() - 3600, "/");
+
+    $agentId = '39880329';
+
+    if (empty($mainCode) || empty($dgoCode)) {
+        return new WP_REST_Response(['status' => 400, 'message' => 'Missing required fields'], 400);
+    }
+// Данные для отправки на внешний API
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_OSAGO_URL . '/Confirm';
+    $body = json_encode(['mainCode' => $mainCode, 'agentId' => $agentId, 'agent' => $agentId, 'dgoCode' => $dgoCode]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+function handle_send_police(WP_REST_Request $request) {
+
+    $params = $request->get_json_params();
+    $polisNumber = isset($params['confirmationCode']) ? sanitize_text_field($params['confirmationCode']) : '';
+
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_GREEN_CARD_URL . '/SendPrintOut';
+    $body = json_encode(['polisNumber' => $polisNumber]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+function handle_send_osago_police(WP_REST_Request $request) {
+
+    $params = $request->get_json_params();
+    $polisNumber = isset($params['confirmationCode']) ? sanitize_text_field($params['confirmationCode']) : '';
+
+    $username = ORANTA_API_USER;
+    $password = ORANTA_API_PASSWORD;
+    $api_url = ORANTA_API_OSAGO_URL . '/SendPrintOut';
+    $body = json_encode(['polisNumber' => $polisNumber]);
+
+    return send_ajax_request($api_url, $username, $password, $body);
+}
+
+/**
+ * @param string $api_url
+ * @param mixed $username
+ * @param mixed $password
+ * @param bool|string $body
+ * @return WP_REST_Response
+ */
+function send_ajax_request($api_url, $username, $password, $body)
+{
+    $ch = curl_init($api_url);
+
+    // Устанавливаем параметры cURL
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_USERPWD, "$username:$password");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/plain',
+        'Content-Type: application/json',
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+
+    // Выполняем запрос
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+
+    // Закрываем cURL-сессию
+    curl_close($ch);
+
+    if ($http_code != 200) {
+        // В случае ошибки 403 выводим дополнительные данные
+        echo "Response: $response\n";
+        echo "cURL Error: $curl_error\n";
+        return new WP_REST_Response(['success' => false, 'Response' => $response, 'cURL Error' => $curl_error],
+            $http_code);
+    }
+
+    if ($curl_error) {
+        return new WP_REST_Response(['success' => false, 'message' => 'cURL error: ' . $curl_error], 500);
+    }
+
+    if ($http_code === 200) {
+        return new WP_REST_Response([
+            'success' => true,
+            'status' => $http_code
+        ], 200);
+    }
+
+    return new WP_REST_Response(['success' => false, 'message' => 'Error in API response', 'response' => $body],
+        $http_code);
+}

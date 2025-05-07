@@ -9,12 +9,19 @@ $confirmationCode = isset($_GET['code']) ? sanitize_text_field($_GET['code']) : 
 $storedCode = get_field('codeinsurance', $policyId); // Код підтвердження з ACF
 $certificateUrl = get_field('urlinsurance', $policyId); // URL сертифікату з ACF
 $codeinsurance = get_field('codeinsurance', $policyId);
+$insurancetype = get_field('insurancetype', $policyId);
 
 echo '<div style="height:50vh; width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;">';
 
 // Додаємо заголовок
 echo '<h2>Інформація про ваш поліс</h2>';
 
+if ($confirmationCode === $storedCode && ($insurancetype === 'Green Card' || $insurancetype === 'osago')) {
+    if (isset($_GET['code'])) {
+        update_post_meta($policyId, 'status', 'confirmed');
+        $status = get_post_meta($policyId, 'status', true);
+    }
+}
 if ($confirmationCode && $status === 'draft') {
     // Є код підтвердження і статус 'draft', виконуємо запит на підтвердження поліса
     if ($confirmationCode === $storedCode) {
@@ -27,6 +34,13 @@ if ($confirmationCode && $status === 'draft') {
     // Якщо статус 'confirmed', показуємо посилання на поліс
     if ($certificateUrl) {
         echo '<a href="' . esc_url($certificateUrl) . '" class="certificate-link" target="_blank">Переглянути підтверджений поліс</a>'; // Відкриття в новому вікні
+        if ($insurancetype === 'Green Card') {
+            echo '<p>Електронна версія полісу була надіслана вам на Email.</p>';
+        }
+        if ($insurancetype === 'osago') {
+            echo '<p></p>';
+            echo ' <button class="certificate-link" id="send-osago">Отримати поліс на Email.</button>';
+        }
     } else {
         echo '<p>Посилання на поліс недоступне.</p>';
     }
@@ -47,7 +61,8 @@ echo '</div>';
 
 ?>
 
-<script>document.addEventListener('DOMContentLoaded', function() {
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
     const loader = document.getElementById('loader');
     const liqpayFormContainer = document.getElementById('liqpay-form-container');
     const confirmationText = document.querySelector('p'); // Знаходимо елемент з текстом "Підтвердження поліса виконується..."
@@ -167,6 +182,99 @@ console.log('confirmationCode',confirmationCode)
             console.error('Помилка при генерації форми LiqPay:', error);
         });
     }
+
+    function isNumber(value) {
+        return !isNaN(parseFloat(value)) && isFinite(value);
+    }
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? match[2] : null;
+    }
+
+    const greenCardCookie = getCookie('greenCard');
+    const osagoCookie = getCookie('osago');
+
+    let confirmUrl = '';
+    let sendPoliceUrl = '';
+
+    if (greenCardCookie) {
+        confirmUrl = '/wp-json/custom/v1/confirm-payment';
+        sendPoliceUrl = '/wp-json/custom/v1/send-police';
+    } else if (osagoCookie) {
+        confirmUrl = '/wp-json/custom/v1/confirm-osago-payment';
+        sendPoliceUrl = '';
+    } else {
+        console.error('Не знайдено відповідних cookies!');
+    }
+
+
+    if (isNumber(confirmationCode) && confirmationCode === codeinsurance && confirmUrl && sendPoliceUrl) {
+        fetch(confirmUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ confirmationCode }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 200) {
+                setTimeout(() => {
+                    console.log('Waiting 3 sek');
+                    fetch(sendPoliceUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ confirmationCode }),
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 200) {
+                                console.log('Police sent');
+                            } else {
+                                alert('Помилка: ' + (data.message || 'Невідома помилка'));
+                            }
+                        })
+                        .catch(error => {
+                            document.getElementById('loader').style.display = 'none';
+                            alert('Виникла помилка: ' + error.message);
+                        });
+                }, 3000);
+            } else {
+                alert('Помилка: ' + (data.message || 'Невідома помилка'));
+            }
+        })
+        .catch(error => {
+            document.getElementById('loader').style.display = 'none';
+            alert('Виникла помилка: ' + error.message);
+        });
+    }
+        document.getElementById('send-osago').addEventListener('click', function () {
+
+            fetch('/wp-json/custom/v1/send-osago-police', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ confirmationCode })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Ответ от сервера:', data);
+                    if (data.status === 200) {
+                        alert('ОСАГО поліс відправлено вам на Email. Перевірте будь ласка');
+                    } else {
+                        alert('Ошибка: ' + (data.message || 'Что-то пошло не так'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                    alert('Ошибка отправки: ' + error.message);
+                });
+        });
+
 });
 </script>
 

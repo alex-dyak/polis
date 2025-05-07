@@ -1519,12 +1519,18 @@
               };
               this._this = this;
               if (this.config.init) {
-                  const selectItems = data ? document.querySelectorAll(data) : document.querySelectorAll("select");
+                  let selectItems = data
+                      ? document.querySelectorAll(`${data}:not(#greenCardForm select):not(#oscvForm select)`)
+                      : document.querySelectorAll("select:not(#greenCardForm select):not(#oscvForm select)");
+
                   if (selectItems.length) {
                       this.selectsInit(selectItems);
                       this.setLogging(`Прокинувся, построїв селектов: (${selectItems.length})`);
-                  } else this.setLogging("Сплю, немає жодного select");
+                  } else {
+                      this.setLogging("Сплю, немає жодного select");
+                  }
               }
+
           }
           getSelectClass(className) {
               return `.${className}`;

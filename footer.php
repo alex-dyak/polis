@@ -438,6 +438,40 @@
 </footer>
 </div>
 
+<?php if (is_page_template('greencard.php')): ?>
+    <div id="popupOtpVerification" aria-hidden="true" class="popup popup-insurance popup-l">
+        <div class="popup__wrapper">
+            <div class="popup__content">
+                <button data-close id="closePopupButton" type="button" class="popup__close">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <circle cx="24" cy="24" r="23.5" fill="white" stroke="#00812A"/>
+                        <path d="M26.546 24.0004L34.2382 16.3081L35.8245 14.7218C36.0585 14.4878 36.0585 14.1076 35.8245 13.8736L34.1272 12.1762C33.8932 11.9422 33.5129 11.9422 33.2789 12.1762L24.0004 21.4548L14.7218 12.1755C14.4878 11.9415 14.1076 11.9415 13.8736 12.1755L12.1755 13.8728C11.9415 14.1068 11.9415 14.4871 12.1755 14.7211L21.4548 24.0004L12.1755 33.2789C11.9415 33.5129 11.9415 33.8932 12.1755 34.1272L13.8728 35.8245C14.1068 36.0585 14.4871 36.0585 14.7211 35.8245L24.0004 26.546L31.6926 34.2382L33.2789 35.8245C33.5129 36.0585 33.8932 36.0585 34.1272 35.8245L35.8245 34.1272C36.0585 33.8932 36.0585 33.5129 35.8245 33.2789L26.546 24.0004Z"
+                              fill="#00812A"/>
+                    </svg>
+                </button>
+                <div class="popup__text">
+                    <h2 class="h2">Введіть код підтвердження</h2>
+                    <p>Код підтвердження було надіслано вам на SMS або Email.</p>
+                    <input type="text" id="otpCode" name="otpCode" placeholder="Введіть код" class="input input-border" style="margin-top: 20px;">
+                    <input type="hidden" id="MainCode" name="mainCode" value="">
+                    <button id="confirmOtp" class="button button-green" style="margin-top: 20px;">Підтвердити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="myModal" class="popup popup-insurance popup-l">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="confirmation-section">
+                <p>Для оформлення полісу</p>
+                <div id="liqpay-form-container"></div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+
 <script>
     function preloader() {
         const preloaderImages = document.querySelector('[data-preloader]') ? document.querySelectorAll('[data-preloader] img') : document.querySelectorAll('img');
